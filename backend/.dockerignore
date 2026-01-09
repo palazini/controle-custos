@@ -1,0 +1,9 @@
+venv
+__pycache__
+.git
+.env
+staticfiles
+*.sqlite3
+check_superuser.py
+check_users.py
+reset_password.py
