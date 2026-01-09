@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+
+# Environment
+.env
+.env.*
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db

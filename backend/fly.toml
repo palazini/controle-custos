@@ -1,0 +1,23 @@
+# fly.toml app configuration file generated for django-backend
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "custos-backend" # Mude para o nome exato do seu app no Fly.io
+primary_region = "gru" # São Paulo
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "1gb" # Pandas pode consumir memória no upload
+  cpu_kind = "shared"
+  cpus = 1
