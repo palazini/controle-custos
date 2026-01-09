@@ -9,8 +9,6 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from django.contrib.auth.models import User
-from django.http import HttpResponse
 
 router = DefaultRouter()
 router.register(r'transacoes', TransacaoViewSet)
@@ -29,6 +27,4 @@ urlpatterns = [
     # JWT Auth
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    # Rota temporária para criar admin. APAGAR DEPOIS.
-    path('setup-admin-temp/', create_admin_temp, name='create-admin-temp'),
 ]
