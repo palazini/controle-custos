@@ -24,7 +24,7 @@ export default function MainLayout() {
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1">
-          <Link to="/" className={getLinkClass('/')}>
+          <Link to="/dashboard" className={getLinkClass('/dashboard')}>
             <LayoutDashboard className="w-5 h-5 mr-3" />
             Dashboard
           </Link>
@@ -32,15 +32,15 @@ export default function MainLayout() {
             <LayoutGrid className="w-5 h-5 mr-3" />
             Resumos Gerais
           </Link>
-          <Link to="/analise-fornecedores" className={getLinkClass('/analise-fornecedores')}>
+          <Link to="/fornecedores" className={getLinkClass('/fornecedores')}>
             <Users className="w-5 h-5 mr-3" />
             Fornecedores
           </Link>
-          <Link to="/analise-mensal" className={getLinkClass('/analise-mensal')}>
+          <Link to="/mensal" className={getLinkClass('/mensal')}>
             <CalendarDays className="w-5 h-5 mr-3" />
             Análise Mensal
           </Link>
-          <Link to="/analise" className={getLinkClass('/analise')}>
+          <Link to="/anual" className={getLinkClass('/anual')}>
             <BarChart3 className="w-5 h-5 mr-3" />
             Análise Anual
           </Link>
