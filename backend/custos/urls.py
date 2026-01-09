@@ -20,8 +20,8 @@ def create_admin_temp(request):
         return HttpResponse("Usuário 'gabriel.palazini' já existe!")
         
     try:
-        User.objects.create_superuser('gabriel.palazini', 'gabriel.palazini@custos.com', 'admin123')
-        return HttpResponse("SUCESSO! Usuário: 'gabriel.palazini' | Senha: 'admin123'. <br><b>IMPORTANTE: Remova este código após o uso!</b>")
+        User.objects.create_superuser('gabriel.palazini', 'gabriel.palazini@custos.com', 'admin1234')
+        return HttpResponse("SUCESSO! Usuário: 'gabriel.palazini' | Senha: 'admin1234'. <br><b>IMPORTANTE: Remova este código após o uso!</b>")
     except Exception as e:
         return HttpResponse(f"Erro: {str(e)}")
 
