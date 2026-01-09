@@ -9,6 +9,21 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from django.contrib.auth.models import User
+from django.http import HttpResponse
+
+def create_admin_temp(request):
+    if request.GET.get('secret') != 'temp_fly_secret_2024':
+        return HttpResponse("Acesso negado. Secret incorreto.", status=403)
+    
+    if User.objects.filter(username='gabriel.palazini').exists():
+        return HttpResponse("Usuário 'gabriel.palazini' já existe!")
+        
+    try:
+        User.objects.create_superuser('gabriel.palazini', 'gabriel.palazini@custos.com', 'admin123')
+        return HttpResponse("SUCESSO! Usuário: 'gabriel.palazini' | Senha: 'admin123'. <br><b>IMPORTANTE: Remova este código após o uso!</b>")
+    except Exception as e:
+        return HttpResponse(f"Erro: {str(e)}")
 
 router = DefaultRouter()
 router.register(r'transacoes', TransacaoViewSet)
@@ -27,4 +42,6 @@ urlpatterns = [
     # JWT Auth
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # Rota temporária para criar admin. APAGAR DEPOIS.
+    path('setup-admin-temp/', create_admin_temp, name='create-admin-temp'),
 ]
