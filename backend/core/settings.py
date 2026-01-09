@@ -128,3 +128,6 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Fly.io SSL Termination - Confia se o load balancer disser que é HTTPS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
