@@ -1,0 +1,30 @@
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import (
+    TransacaoViewSet, ResponsavelViewSet, UploadExcelView,
+    ResumoMensalView, DetalhesSetorView, ResumoDiarioView,
+    ResumoFornecedoresView, ResumoGeralView, DashboardResumoView
+)
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
+router = DefaultRouter()
+router.register(r'transacoes', TransacaoViewSet)
+router.register(r'responsaveis', ResponsavelViewSet)
+
+urlpatterns = [
+    path('', include(router.urls)),
+    path('upload/', UploadExcelView.as_view(), name='upload-excel'),
+    path('resumo-mensal/', ResumoMensalView.as_view(), name='resumo-mensal'),
+    path('resumo-diario/', ResumoDiarioView.as_view(), name='resumo-diario'),
+    path('detalhes-setor/', DetalhesSetorView.as_view(), name='detalhes-setor'),
+    path('resumo-fornecedores/', ResumoFornecedoresView.as_view(), name='resumo-fornecedores'),
+    path('resumo-geral/', ResumoGeralView.as_view(), name='resumo-geral'),
+    path('dashboard-resumo/', DashboardResumoView.as_view(), name='dashboard-resumo'),
+    
+    # JWT Auth
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+]
