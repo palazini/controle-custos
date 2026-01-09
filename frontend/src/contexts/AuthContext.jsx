@@ -18,7 +18,10 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async (username, password) => {
-        const response = await axios.post('http://127.0.0.1:8000/api/token/', {
+        // Usa variável de ambiente ou fallback para localhost
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/';
+
+        const response = await axios.post(`${apiUrl}token/`, {
             username,
             password
         });
