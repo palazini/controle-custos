@@ -121,7 +121,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Otimização do Whitenoise (Cache + Compressão)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Confiança no CSRF (Necessário para Fly.io via HTTPS)
-CSRF_TRUSTED_ORIGINS = ['https://*.fly.dev']
+# Confiança no CSRF (Necessário para Fly.io e Vercel via HTTPS)
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.fly.dev',
+    'https://*.vercel.app'
+]
 
 CORS_ALLOW_ALL_ORIGINS = True
