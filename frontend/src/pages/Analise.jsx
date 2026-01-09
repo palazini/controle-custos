@@ -2,20 +2,19 @@ import React, { useEffect, useState, useMemo } from 'react';
 import api from '../api';
 import * as XLSX from 'xlsx';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, Treemap
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, LineChart, Line
 } from 'recharts';
 import {
     TrendingUp, TrendingDown, AlertTriangle, Calendar,
-    ChevronLeft, ChevronRight, Download, Target, ArrowUpRight, ArrowDownRight, FileSpreadsheet, Map
+    ChevronLeft, ChevronRight, Download, Target, ArrowUpRight, ArrowDownRight, FileSpreadsheet
 } from 'lucide-react';
 
 export default function Analise() {
-    // Estados otimizados - não armazena mais transações brutas
+    // Estados otimizados
     const [dadosAgregados, setDadosAgregados] = useState({ por_mes: [], por_setor_mes: [], totais: {} });
     const [metas, setMetas] = useState({});
     const [loading, setLoading] = useState(true);
     const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
-    const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
     const [setorExpandido, setSetorExpandido] = useState(null);
 
     const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
@@ -42,12 +41,6 @@ export default function Analise() {
             });
             setMetas(mapMetas);
 
-            // Auto-seleciona o último mês com dados
-            const mesesComDados = resResumo.data.totais.meses_com_dados || [];
-            if (mesesComDados.length > 0) {
-                setMesSelecionado(mesesComDados[mesesComDados.length - 1]);
-            }
-
             setLoading(false);
         } catch (error) {
             console.error("Erro:", error);
@@ -55,17 +48,17 @@ export default function Analise() {
         }
     };
 
-    // Transforma dados agregados em estrutura por mês (já vem pronto do backend!)
+    // Transforma dados agregados em estrutura por mês
     const dadosPorMes = useMemo(() => {
         const agrupado = {};
 
-        // Popula totais por mês
+        // Popula totalizadores
         dadosAgregados.por_mes.forEach(item => {
             if (!agrupado[item.mes]) agrupado[item.mes] = { total: 0, setores: {} };
             agrupado[item.mes].total = item.total;
         });
 
-        // Popula setores por mês
+        // Popula setores
         dadosAgregados.por_setor_mes.forEach(item => {
             if (!agrupado[item.mes]) agrupado[item.mes] = { total: 0, setores: {} };
             agrupado[item.mes].setores[item.setor] = item.total;
@@ -74,123 +67,87 @@ export default function Analise() {
         return agrupado;
     }, [dadosAgregados]);
 
-    // Lista de setores únicos (extraída dos dados agregados)
+    // Lista de setores únicos
     const setoresUnicos = useMemo(() => {
         const setores = new Set();
         dadosAgregados.por_setor_mes.forEach(item => setores.add(item.setor));
         return Array.from(setores).sort();
     }, [dadosAgregados]);
 
-    // Dados para o gráfico de barras empilhadas
+    // Dados para o gráfico de barras (Mês a Mês)
     const dadosGrafico = useMemo(() => {
         return MESES.map((nome, idx) => {
             const mes = idx + 1;
             const dados = { name: nome, mes };
-
-            setoresUnicos.slice(0, 8).forEach(setor => {
+            setoresUnicos.slice(0, 5).forEach(setor => {
                 dados[setor] = dadosPorMes[mes]?.setores[setor] || 0;
             });
-
             dados.total = dadosPorMes[mes]?.total || 0;
             return dados;
         });
     }, [dadosPorMes, setoresUnicos]);
 
-    // KPIs - agora usa o mês selecionado + projeções
+    // KPIs Anuais
     const kpis = useMemo(() => {
         const totalAno = Object.values(dadosPorMes).reduce((acc, m) => acc + m.total, 0);
-        const totalMesSelecionado = dadosPorMes[mesSelecionado]?.total || 0;
-        const mesAnterior = mesSelecionado > 1 ? mesSelecionado - 1 : 12;
-        const totalMesAnterior = dadosPorMes[mesAnterior]?.total || 0;
 
-        const variacao = totalMesAnterior > 0
-            ? ((totalMesSelecionado - totalMesAnterior) / totalMesAnterior) * 100
-            : 0;
+        const mesesComDados = dadosAgregados.totais.meses_com_dados?.length || 1;
+        const mediaMensal = mesesComDados > 0 ? totalAno / mesesComDados : 0;
 
-        // Setores estourados (acima da meta)
-        let estourados = 0;
-        let maiorCrescimento = { setor: '-', percent: 0 };
-
-        const mesAnteriorCalc = mesSelecionado > 1 ? mesSelecionado - 1 : 12;
-
-        // Cálculos de orçamento
-        let orcamentoTotalAnual = 0;
-        let orcamentoMesAtual = 0;
-
+        // Orçamento Anual Total (Soma das metas mensais de todos setores * 12)
+        let orcamentoMensalTotal = 0;
         setoresUnicos.forEach(setor => {
-            const valorAtual = dadosPorMes[mesSelecionado]?.setores[setor] || 0;
-            const valorAnterior = dadosPorMes[mesAnteriorCalc]?.setores[setor] || 0;
-            const meta = metas[setor] || 0;
+            orcamentoMensalTotal += (metas[setor] || 0);
+        });
+        const orcamentoAnual = orcamentoMensalTotal * 12;
 
-            orcamentoMesAtual += meta;
-            orcamentoTotalAnual += meta * 12;
+        const percentualBudget = orcamentoAnual > 0 ? (totalAno / orcamentoAnual) * 100 : 0;
 
-            if (meta > 0 && valorAtual > meta) estourados++;
+        // Setor com Maior Gasto no Ano
+        const gastosPorSetor = {};
+        dadosAgregados.por_setor_mes.forEach(item => {
+            gastosPorSetor[item.setor] = (gastosPorSetor[item.setor] || 0) + item.total;
+        });
 
-            if (valorAnterior > 0) {
-                const cresc = ((valorAtual - valorAnterior) / valorAnterior) * 100;
-                if (cresc > maiorCrescimento.percent) {
-                    maiorCrescimento = { setor, percent: cresc };
-                }
+        let topSetor = { nome: '-', total: 0 };
+        Object.entries(gastosPorSetor).forEach(([nome, total]) => {
+            if (total > topSetor.total) {
+                topSetor = { nome, total };
             }
         });
 
-        // Projeção: ritmo diário médio * dias do mês
-        const hoje = new Date();
-        const diaAtual = hoje.getDate();
-        const diasNoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
-        const ritmoDiario = diaAtual > 0 ? totalMesSelecionado / diaAtual : 0;
-        const projecaoFimMes = ritmoDiario * diasNoMes;
-
-        // YTD vs Budget
-        const ytdReal = totalAno;
-        const mesesPassados = dadosAgregados.totais.meses_com_dados?.length || 1;
-        const ytdBudget = orcamentoMesAtual * mesesPassados;
-        const ytdPercentual = ytdBudget > 0 ? (ytdReal / ytdBudget) * 100 : 0;
-
         return {
             totalAno,
-            totalMesSelecionado,
-            variacao,
-            estourados,
-            maiorCrescimento,
-            // Novas métricas
-            projecaoFimMes,
-            orcamentoMesAtual,
-            projecaoVsMeta: orcamentoMesAtual > 0 ? (projecaoFimMes / orcamentoMesAtual) * 100 : 0,
-            ytdReal,
-            ytdBudget,
-            ytdPercentual,
-            diaAtual,
-            diasNoMes
+            mediaMensal,
+            percentualBudget,
+            orcamentoAnual,
+            topSetor,
+            mesesComDados
         };
-    }, [dadosPorMes, metas, setoresUnicos, mesSelecionado, anoSelecionado, dadosAgregados]);
+    }, [dadosPorMes, metas, setoresUnicos, dadosAgregados]);
 
-    // Tabela comparativa mês a mês por setor
+    // Tabela comparativa mês a mês
     const tabelaComparativa = useMemo(() => {
         return setoresUnicos.map(setor => {
             const linha = { setor, meses: [], total: 0 };
-
             for (let m = 1; m <= 12; m++) {
                 const valor = dadosPorMes[m]?.setores[setor] || 0;
                 linha.meses.push(valor);
                 linha.total += valor;
             }
 
-            // Tendência (compara últimos 2 meses com dados)
+            // Tendência simples (Year over Year projections could go here, but sticking to simple trend)
+            // Vamos manter a lógica anterior de tendência baseada nos últimos meses com dados
             const ultimos = linha.meses.filter(v => v > 0).slice(-2);
-            if (ultimos.length === 2) {
-                linha.tendencia = ultimos[1] > ultimos[0] ? 'up' : 'down';
-            } else {
-                linha.tendencia = 'stable';
-            }
+            linha.tendencia = (ultimos.length === 2 && ultimos[1] > ultimos[0]) ? 'up' :
+                (ultimos.length === 2 && ultimos[1] < ultimos[0]) ? 'down' : 'stable';
 
             linha.meta = metas[setor] || 0;
             return linha;
         }).sort((a, b) => b.total - a.total);
     }, [dadosPorMes, setoresUnicos, metas]);
 
-    // Drill-down: busca detalhes do setor quando expandido
+    // Drill-down details
     const [detalhesSetor, setDetalhesSetor] = useState([]);
     const [loadingDetalhes, setLoadingDetalhes] = useState(false);
 
@@ -206,19 +163,19 @@ export default function Analise() {
         setLoadingDetalhes(false);
     };
 
-    // Quando o setor expandido muda, busca os detalhes
     useEffect(() => {
-        if (setorExpandido) {
-            fetchDetalhesSetor(setorExpandido);
-        } else {
-            setDetalhesSetor([]);
-        }
+        if (setorExpandido) fetchDetalhesSetor(setorExpandido);
+        else setDetalhesSetor([]);
     }, [setorExpandido, anoSelecionado]);
 
-    // Dados para o Treemap (custos do mês selecionado)
+    // Treemap: Distribuição ANUAL por setor
     const dadosTreemap = useMemo(() => {
-        const setoresDoMes = dadosPorMes[mesSelecionado]?.setores || {};
-        return Object.entries(setoresDoMes)
+        const gastosPorSetor = {};
+        dadosAgregados.por_setor_mes.forEach(item => {
+            gastosPorSetor[item.setor] = (gastosPorSetor[item.setor] || 0) + item.total;
+        });
+
+        return Object.entries(gastosPorSetor)
             .map(([name, size]) => ({
                 name: name.substring(0, 25),
                 fullName: name,
@@ -226,38 +183,22 @@ export default function Analise() {
                 fill: COLORS[Math.abs(name.charCodeAt(0)) % COLORS.length]
             }))
             .sort((a, b) => b.size - a.size)
-            .slice(0, 15);
-    }, [dadosPorMes, mesSelecionado]);
+            .slice(0, 20); // Top 20 setores do ano
+    }, [dadosAgregados]);
 
-    // ========== EXPORTAÇÃO EXCEL ==========
+    // ... ExportExcel e formatCurrency mantidos ...
     const exportarExcel = () => {
-        // Prepara dados para a planilha
         const dadosExport = tabelaComparativa.map(linha => {
             const row = { 'Setor': linha.setor };
-            MESES.forEach((mes, idx) => {
-                row[mes] = linha.meses[idx] || 0;
-            });
+            MESES.forEach((mes, idx) => row[mes] = linha.meses[idx] || 0);
             row['Total'] = linha.total;
             row['Meta Mensal'] = linha.meta || 0;
-            row['Tendência'] = linha.tendencia === 'up' ? '↑' : linha.tendencia === 'down' ? '↓' : '—';
             return row;
         });
 
-        // Cria workbook e worksheet
         const ws = XLSX.utils.json_to_sheet(dadosExport);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `Custos ${anoSelecionado}`);
-
-        // Define largura das colunas
-        ws['!cols'] = [
-            { wch: 40 }, // Setor
-            ...MESES.map(() => ({ wch: 12 })), // Meses
-            { wch: 15 }, // Total
-            { wch: 15 }, // Meta
-            { wch: 10 }  // Tendência
-        ];
-
-        // Baixa o arquivo
         XLSX.writeFile(wb, `Analise_Custos_${anoSelecionado}.xlsx`);
     };
 
@@ -281,202 +222,189 @@ export default function Analise() {
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                             <Target className="text-indigo-600" />
-                            Análise Detalhada
+                            Análise Anual
                         </h1>
-                        <p className="text-sm text-gray-500 mt-1">Comparativo mês a mês e drill-down por setor</p>
+                        <p className="text-sm text-gray-500 mt-1">Visão consolidada do ano e comparativos</p>
                     </div>
 
-                    {/* Seletor de Ano e Mês */}
-                    <div className="flex items-center gap-4">
-                        {/* Seletor de Mês */}
-                        <select
-                            value={mesSelecionado}
-                            onChange={(e) => setMesSelecionado(Number(e.target.value))}
-                            className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        >
-                            {MESES.map((nome, idx) => (
-                                <option key={idx} value={idx + 1}>{nome}</option>
-                            ))}
-                        </select>
-
-                        {/* Seletor de Ano */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setAnoSelecionado(a => a - 1)}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <ChevronLeft className="w-5 h-5 text-gray-600" />
-                            </button>
-                            <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-lg">
-                                <Calendar className="w-4 h-4 text-indigo-600" />
-                                <span className="font-bold text-indigo-700">{anoSelecionado}</span>
-                            </div>
-                            <button
-                                onClick={() => setAnoSelecionado(a => a + 1)}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <ChevronRight className="w-5 h-5 text-gray-600" />
-                            </button>
+                    {/* Seletor de Ano Apenas */}
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setAnoSelecionado(a => a - 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <ChevronLeft className="w-5 h-5 text-gray-600" />
+                        </button>
+                        <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-lg">
+                            <Calendar className="w-4 h-4 text-indigo-600" />
+                            <span className="font-bold text-indigo-700">{anoSelecionado}</span>
                         </div>
+                        <button onClick={() => setAnoSelecionado(a => a + 1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                            <ChevronRight className="w-5 h-5 text-gray-600" />
+                        </button>
                     </div>
                 </div>
             </header>
 
             <main className="flex-1 p-8 space-y-8">
-                {/* KPI CARDS */}
+                {/* KPI CARDS NOVOS */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <p className="text-sm text-gray-500 mb-1">Total do Ano</p>
+                        <p className="text-sm text-gray-500 mb-1">Total Acumulado ({anoSelecionado})</p>
                         <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(kpis.totalAno)}</h3>
                     </div>
 
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <p className="text-sm text-gray-500 mb-1">{MESES[mesSelecionado - 1]}/{anoSelecionado}</p>
-                        <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(kpis.totalMesSelecionado)}</h3>
-                        <div className={`flex items-center mt-1 text-sm ${kpis.variacao >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {kpis.variacao >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                            <span>{Math.abs(kpis.variacao).toFixed(1)}% vs {MESES[mesSelecionado - 2] || 'Dez'}</span>
-                        </div>
+                        <p className="text-sm text-gray-500 mb-1">Média Mensal</p>
+                        <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(kpis.mediaMensal)}</h3>
+                        <p className="text-xs text-gray-400 mt-1">Baseado em {kpis.mesesComDados} meses com dados</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <p className="text-sm text-gray-500 mb-1">Setores Estourados</p>
-                        <h3 className={`text-2xl font-bold ${kpis.estourados > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {kpis.estourados}
+                        <p className="text-sm text-gray-500 mb-1">Budget Consumido</p>
+                        <h3 className={`text-2xl font-bold ${kpis.percentualBudget > 100 ? 'text-red-600' : 'text-blue-600'}`}>
+                            {kpis.percentualBudget.toFixed(1)}%
                         </h3>
-                        <p className="text-xs text-gray-400 mt-1">Acima da meta mensal</p>
+                        <p className="text-xs text-gray-400 mt-1">Do orçamento anual projetado</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <p className="text-sm text-gray-500 mb-1">Maior Crescimento</p>
-                        <h3 className="text-lg font-bold text-gray-900 truncate" title={kpis.maiorCrescimento.setor}>
-                            {kpis.maiorCrescimento.setor.substring(0, 20)}...
+                        <p className="text-sm text-gray-500 mb-1">Maior Centro de Custo</p>
+                        <h3 className="text-lg font-bold text-gray-900 truncate" title={kpis.topSetor.nome}>
+                            {kpis.topSetor.nome.substring(0, 15)}...
                         </h3>
-                        <div className="flex items-center mt-1 text-sm text-red-600">
-                            <TrendingUp className="w-4 h-4 mr-1" />
-                            <span>+{kpis.maiorCrescimento.percent.toFixed(0)}%</span>
-                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{formatCurrency(kpis.topSetor.total)} acumulado</p>
                     </div>
                 </div>
 
-                {/* GRÁFICO EMPILHADO */}
+                {/* GRÁFICO DE LINHAS - Evolução Mensal */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-800 mb-6">Evolução Mensal por Setor (Top 8)</h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-bold text-gray-800">Evolução Mensal (Top 5 Setores)</h3>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                            Valores mensais por setor
+                        </div>
+                    </div>
                     <div className="h-[350px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={dadosGrafico} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <LineChart data={dadosGrafico} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
-                                <YAxis
+                                <XAxis
+                                    dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: '#6b7280', fontSize: 12 }}
-                                    tickFormatter={(value) => formatCurrency(value)}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#6b7280', fontSize: 11 }}
+                                    tickFormatter={formatCurrency}
+                                    width={70}
                                 />
                                 <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    contentStyle={{
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        boxShadow: '0 4px 12px rgb(0 0 0 / 0.1)',
+                                        padding: '10px 14px'
+                                    }}
                                     formatter={(value) => formatCurrency(value)}
                                 />
-                                <Legend />
-                                {setoresUnicos.slice(0, 8).map((setor, idx) => (
-                                    <Bar
+                                <Legend
+                                    wrapperStyle={{ paddingTop: '15px' }}
+                                    iconType="circle"
+                                    iconSize={8}
+                                />
+                                {setoresUnicos.slice(0, 5).map((setor, idx) => (
+                                    <Line
                                         key={setor}
+                                        type="monotone"
                                         dataKey={setor}
-                                        stackId="a"
-                                        fill={COLORS[idx % COLORS.length]}
-                                        radius={idx === setoresUnicos.slice(0, 8).length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                                        stroke={COLORS[idx % COLORS.length]}
+                                        strokeWidth={2}
+                                        dot={{ fill: COLORS[idx % COLORS.length], strokeWidth: 0, r: 3 }}
+                                        activeDot={{ r: 5 }}
                                     />
                                 ))}
-                            </BarChart>
+                            </LineChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* TREEMAP - Distribuição do Mês */}
+                {/* RANKING DE CUSTOS - Substituindo o Treemap */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <Map className="w-5 h-5 text-indigo-600" />
-                        Mapa de Custos - {MESES[mesSelecionado - 1]}/{anoSelecionado}
+                        <TrendingUp className="w-5 h-5 text-indigo-600" />
+                        Top 10 Centros de Custo - {anoSelecionado}
                     </h3>
-                    <p className="text-sm text-gray-500 mb-4">Tamanho proporcional ao valor gasto. Clique para ver detalhes na tabela.</p>
-                    <div className="h-[400px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <Treemap
-                                data={dadosTreemap}
-                                dataKey="size"
-                                aspectRatio={4 / 3}
-                                stroke="#fff"
-                                fill="#6366f1"
-                                content={({ root, depth, x, y, width, height, index, name, size, fill }) => {
-                                    const handleClick = () => {
-                                        const fullName = dadosTreemap[index]?.fullName;
-                                        if (fullName) {
-                                            setSetorExpandido(fullName);
-                                            // Scroll para a tabela após um pequeno delay
-                                            setTimeout(() => {
-                                                document.getElementById('tabela-comparativa')?.scrollIntoView({
-                                                    behavior: 'smooth',
-                                                    block: 'start'
-                                                });
-                                            }, 100);
-                                        }
-                                    };
+                    <div className="space-y-4">
+                        {dadosTreemap.slice(0, 10).map((item, index) => {
+                            const maxValue = dadosTreemap[0]?.size || 1;
+                            const percentage = (item.size / maxValue) * 100;
+                            const meta = metas[item.fullName] || 0;
+                            const metaAnual = meta * 12;
+                            const estourou = metaAnual > 0 && item.size > metaAnual;
 
-                                    // Calcula se cabe texto
-                                    const cabeTexto = width > 60 && height > 40;
-                                    const cabeValor = width > 50 && height > 25;
+                            return (
+                                <div
+                                    key={item.fullName}
+                                    className={`group cursor-pointer transition-all duration-200 hover:scale-[1.01] ${setorExpandido === item.fullName ? 'ring-2 ring-indigo-500 rounded-lg' : ''}`}
+                                    onClick={() => {
+                                        setSetorExpandido(setorExpandido === item.fullName ? null : item.fullName);
+                                        setTimeout(() => {
+                                            document.getElementById('tabela-comparativa')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }, 100);
+                                    }}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        {/* Posição */}
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0 ? 'bg-amber-100 text-amber-700' :
+                                            index === 1 ? 'bg-gray-200 text-gray-600' :
+                                                index === 2 ? 'bg-orange-100 text-orange-700' :
+                                                    'bg-gray-100 text-gray-500'
+                                            }`}>
+                                            {index + 1}
+                                        </div>
 
-                                    return (
-                                        <g onClick={handleClick} style={{ cursor: 'pointer' }}>
-                                            <rect
-                                                x={x}
-                                                y={y}
-                                                width={width}
-                                                height={height}
-                                                style={{
-                                                    fill: fill || COLORS[index % COLORS.length],
-                                                    stroke: '#fff',
-                                                    strokeWidth: 2
-                                                }}
-                                            />
-                                            {cabeTexto && (
-                                                <text
-                                                    x={x + width / 2}
-                                                    y={y + height / 2 - (cabeValor ? 6 : 0)}
-                                                    textAnchor="middle"
-                                                    fill="#fff"
-                                                    fontSize={Math.min(14, width / 10)}
-                                                    fontWeight="600"
-                                                    style={{
-                                                        textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                                                        pointerEvents: 'none'
-                                                    }}
-                                                >
-                                                    {(name || '').substring(0, Math.floor(width / 7))}
-                                                </text>
-                                            )}
-                                            {cabeValor && (
-                                                <text
-                                                    x={x + width / 2}
-                                                    y={y + height / 2 + (cabeTexto ? 12 : 4)}
-                                                    textAnchor="middle"
-                                                    fill="#fff"
-                                                    fontSize={Math.min(12, width / 12)}
-                                                    fontWeight="500"
-                                                    style={{
-                                                        textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
-                                                        pointerEvents: 'none'
-                                                    }}
-                                                >
-                                                    {formatCurrency(size || 0)}
-                                                </text>
-                                            )}
-                                        </g>
-                                    );
-                                }}
-                            />
-                        </ResponsiveContainer>
+                                        {/* Nome e Barra */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-sm font-medium text-gray-800 truncate max-w-[300px]" title={item.fullName}>
+                                                    {item.fullName}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    {estourou && (
+                                                        <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                                                            Acima do Budget
+                                                        </span>
+                                                    )}
+                                                    <span className="text-sm font-bold text-gray-900">
+                                                        {formatCurrency(item.size)}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Barra de Progresso */}
+                                            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full transition-all duration-500 ${estourou ? 'bg-gradient-to-r from-red-400 to-red-500' :
+                                                        index === 0 ? 'bg-gradient-to-r from-indigo-500 to-purple-500' :
+                                                            'bg-gradient-to-r from-indigo-400 to-indigo-500'
+                                                        }`}
+                                                    style={{ width: `${percentage}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
+
+                    {dadosTreemap.length > 10 && (
+                        <p className="text-center text-sm text-gray-400 mt-4">
+                            + {dadosTreemap.length - 10} outros setores na tabela abaixo
+                        </p>
+                    )}
                 </div>
 
                 {/* TABELA COMPARATIVA */}
