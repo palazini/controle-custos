@@ -12,19 +12,6 @@ from rest_framework_simplejwt.views import (
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 
-def create_admin_temp(request):
-    if request.GET.get('secret') != 'temp_fly_secret_2024':
-        return HttpResponse("Acesso negado. Secret incorreto.", status=403)
-    
-    if User.objects.filter(username='gabriel.palazini').exists():
-        return HttpResponse("Usuário 'gabriel.palazini' já existe!")
-        
-    try:
-        User.objects.create_superuser('gabriel.palazini', 'gabriel.palazini@custos.com', 'admin1234')
-        return HttpResponse("SUCESSO! Usuário: 'gabriel.palazini' | Senha: 'admin1234'. <br><b>IMPORTANTE: Remova este código após o uso!</b>")
-    except Exception as e:
-        return HttpResponse(f"Erro: {str(e)}")
-
 router = DefaultRouter()
 router.register(r'transacoes', TransacaoViewSet)
 router.register(r'responsaveis', ResponsavelViewSet)
