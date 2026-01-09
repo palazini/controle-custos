@@ -7,6 +7,7 @@ app = "custos-backend" # Mude para o nome exato do seu app no Fly.io
 primary_region = "gru" # São Paulo
 
 [build]
+  dockerfile = "../Dockerfile"
   dockerfile = "Dockerfile"
 
 [http_service]

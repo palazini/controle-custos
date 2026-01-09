@@ -15,11 +15,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements antes para aproveitar cache do Docker
-COPY requirements.txt /app/
+# Como o Dockerfile está na raiz, precisamos apontar para backend/requirements.txt
+COPY backend/requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar todo o código
-COPY . /app/
+# Copiar todo o código da pasta backend
+COPY backend/ /app/
 
 # Coletar arquivos estáticos (CSS/JS admin)
 RUN python manage.py collectstatic --noinput
