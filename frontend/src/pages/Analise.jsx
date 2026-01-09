@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import axios from 'axios';
+import api from '../api';
 import * as XLSX from 'xlsx';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, Treemap
@@ -30,8 +30,8 @@ export default function Analise() {
         setLoading(true);
         try {
             const [resResumo, resResp] = await Promise.all([
-                axios.get(`http://127.0.0.1:8000/api/resumo-mensal/?ano=${anoSelecionado}`),
-                axios.get('http://127.0.0.1:8000/api/responsaveis/')
+                api.get(`resumo-mensal/?ano=${anoSelecionado}`),
+                api.get('responsaveis/')
             ]);
 
             setDadosAgregados(resResumo.data);
@@ -197,7 +197,7 @@ export default function Analise() {
     const fetchDetalhesSetor = async (nomeSetor) => {
         setLoadingDetalhes(true);
         try {
-            const res = await axios.get(`http://127.0.0.1:8000/api/detalhes-setor/?ano=${anoSelecionado}&setor=${encodeURIComponent(nomeSetor)}`);
+            const res = await api.get(`detalhes-setor/?ano=${anoSelecionado}&setor=${encodeURIComponent(nomeSetor)}`);
             setDetalhesSetor(res.data);
         } catch (error) {
             console.error("Erro ao buscar detalhes:", error);

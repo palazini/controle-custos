@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Save, Search, Wallet, AlertCircle } from 'lucide-react';
 
 export default function Orcamentos() {
@@ -14,7 +14,7 @@ export default function Orcamentos() {
 
   const fetchResponsaveis = async () => {
     try {
-      const res = await axios.get('http://127.0.0.1:8000/api/responsaveis/');
+      const res = await api.get('responsaveis/');
       // Ordena alfabeticamente
       const dadosOrdenados = res.data.sort((a, b) => a.nome.localeCompare(b.nome));
       setResponsaveis(dadosOrdenados);
@@ -37,15 +37,15 @@ export default function Orcamentos() {
     if (novaMeta === undefined || novaMeta === valorOriginal) return;
 
     try {
-      await axios.patch(`http://127.0.0.1:8000/api/responsaveis/${id}/`, {
+      await api.patch(`responsaveis/${id}/`, {
         orcamento_mensal: novaMeta
       });
-      
+
       // Atualiza lista local para remover o estado de "editado"
-      setResponsaveis(prev => prev.map(r => 
+      setResponsaveis(prev => prev.map(r =>
         r.id === id ? { ...r, orcamento_mensal: novaMeta } : r
       ));
-      
+
       const novasEdicoes = { ...metasEditadas };
       delete novasEdicoes[id];
       setMetasEditadas(novasEdicoes);
@@ -56,7 +56,7 @@ export default function Orcamentos() {
   };
 
   // Filtra a lista na tela
-  const listaFiltrada = responsaveis.filter(r => 
+  const listaFiltrada = responsaveis.filter(r =>
     r.nome.toLowerCase().includes(filtro.toLowerCase())
   );
 
@@ -71,12 +71,12 @@ export default function Orcamentos() {
             </h1>
             <p className="text-sm text-gray-500 mt-1">Defina as metas mensais para cada centro de responsabilidade.</p>
           </div>
-          
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input 
-              type="text" 
-              placeholder="Buscar setor..." 
+            <input
+              type="text"
+              placeholder="Buscar setor..."
               value={filtro}
               onChange={(e) => setFiltro(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-64"
@@ -109,28 +109,27 @@ export default function Orcamentos() {
                       {item.nome}
                       {parseFloat(item.orcamento_mensal) === 0 && (
                         <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                          <AlertCircle className="w-3 h-3 mr-1"/> Sem meta
+                          <AlertCircle className="w-3 h-3 mr-1" /> Sem meta
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="relative max-w-xs">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R$</span>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={valorExibir}
                           onChange={(e) => handleMetaChange(item.id, e.target.value)}
-                          className={`w-full pl-10 pr-4 py-2 border rounded-lg outline-none transition-all font-mono font-medium ${
-                            foiAlterado 
-                              ? 'border-indigo-500 ring-1 ring-indigo-500 bg-white' 
-                              : 'border-gray-200 bg-gray-50 group-hover:bg-white focus:bg-white focus:border-indigo-400'
-                          }`}
+                          className={`w-full pl-10 pr-4 py-2 border rounded-lg outline-none transition-all font-mono font-medium ${foiAlterado
+                            ? 'border-indigo-500 ring-1 ring-indigo-500 bg-white'
+                            : 'border-gray-200 bg-gray-50 group-hover:bg-white focus:bg-white focus:border-indigo-400'
+                            }`}
                         />
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       {foiAlterado && (
-                        <button 
+                        <button
                           onClick={() => salvarMeta(item.id, item.orcamento_mensal)}
                           className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg shadow-sm transition-all animate-fade-in"
                           title="Salvar alteração"
@@ -144,7 +143,7 @@ export default function Orcamentos() {
               })}
             </tbody>
           </table>
-          
+
           {!loading && listaFiltrada.length === 0 && (
             <div className="p-12 text-center text-gray-500">
               Nenhum setor encontrado com esse nome.

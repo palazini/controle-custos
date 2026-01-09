@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import {
     LayoutGrid, Calendar, ChevronLeft, ChevronRight, Award, Truck, Filter
 } from 'lucide-react';
@@ -35,8 +35,8 @@ export default function Resumos() {
     const fetchDados = async () => {
         setLoading(true);
         try {
-            const url = `http://127.0.0.1:8000/api/resumo-geral/?periodo=${periodo}&ano=${ano}&mes=${mes}&semana=${semana}`;
-            const response = await axios.get(url);
+            const url = `resumo-geral/?periodo=${periodo}&ano=${ano}&mes=${mes}&semana=${semana}`;
+            const response = await api.get(url);
             setDados(response.data);
             setLoading(false);
         } catch (error) {

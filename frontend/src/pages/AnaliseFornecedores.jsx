@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import axios from 'axios';
+import api from '../api';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
@@ -24,7 +24,7 @@ export default function AnaliseFornecedores() {
     const fetchDados = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`http://127.0.0.1:8000/api/resumo-fornecedores/?ano=${anoSelecionado}`);
+            const response = await api.get(`resumo-fornecedores/?ano=${anoSelecionado}`);
             setDados(response.data);
             setLoading(false);
         } catch (error) {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import axios from 'axios';
+import api from '../api';
 import {
     LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, ReferenceLine
@@ -28,8 +28,8 @@ export default function AnaliseMensal() {
         setLoading(true);
         try {
             const [resDiario, resResp] = await Promise.all([
-                axios.get(`http://127.0.0.1:8000/api/resumo-diario/?ano=${anoSelecionado}&mes=${mesSelecionado}`),
-                axios.get('http://127.0.0.1:8000/api/responsaveis/')
+                api.get(`resumo-diario/?ano=${anoSelecionado}&mes=${mesSelecionado}`),
+                api.get('responsaveis/')
             ]);
 
             setDados(resDiario.data);

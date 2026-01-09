@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { X, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function UploadModal({ isOpen, onClose, onSuccess }) {
@@ -23,7 +23,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/upload/', formData, {
+      const response = await api.post('upload/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -47,7 +47,7 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 relative animate-fade-in">
-        
+
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <X className="w-5 h-5" />
         </button>
@@ -58,11 +58,11 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
         </h3>
 
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:bg-gray-50 transition-colors">
-          <input 
-            type="file" 
-            accept=".xlsx, .csv" 
+          <input
+            type="file"
+            accept=".xlsx, .csv"
             onChange={handleFileChange}
-            className="hidden" 
+            className="hidden"
             id="file-upload"
           />
           <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
@@ -77,10 +77,9 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         {status && (
-          <div className={`mt-4 p-3 rounded-lg flex items-center text-sm ${
-            status === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-          }`}>
-            {status === 'success' ? <CheckCircle className="w-4 h-4 mr-2"/> : <AlertCircle className="w-4 h-4 mr-2"/>}
+          <div className={`mt-4 p-3 rounded-lg flex items-center text-sm ${status === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            }`}>
+            {status === 'success' ? <CheckCircle className="w-4 h-4 mr-2" /> : <AlertCircle className="w-4 h-4 mr-2" />}
             {message}
           </div>
         )}
@@ -89,8 +88,8 @@ export default function UploadModal({ isOpen, onClose, onSuccess }) {
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
             Cancelar
           </button>
-          <button 
-            onClick={handleUpload} 
+          <button
+            onClick={handleUpload}
             disabled={!file || uploading}
             className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >

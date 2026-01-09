@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   AreaChart, Area, XAxis, YAxis, CartesianGrid
@@ -35,7 +35,7 @@ function App() {
 
   const fetchMetas = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/responsaveis/');
+      const response = await api.get('responsaveis/');
       const mapMetas = {};
       response.data.forEach(r => {
         mapMetas[r.nome] = parseFloat(r.orcamento_mensal);
@@ -49,12 +49,12 @@ function App() {
   const fetchDados = async () => {
     setLoading(true);
     try {
-      let url = 'http://127.0.0.1:8000/api/dashboard-resumo/';
+      let url = 'dashboard-resumo/';
       if (dataInicio && dataFim) {
         url += `?inicio=${dataInicio}&fim=${dataFim}`;
       }
 
-      const response = await axios.get(url);
+      const response = await api.get(url);
       const dados = response.data;
 
       setTotalGasto(dados.total_gasto);
@@ -89,13 +89,13 @@ function App() {
     setTransacoesFiltradas([]); // Limpa enquanto carrega
 
     try {
-      let url = `http://127.0.0.1:8000/api/transacoes/?responsavel__nome=${encodeURIComponent(nomeResponsavel)}`;
+      let url = `transacoes/?responsavel__nome=${encodeURIComponent(nomeResponsavel)}`;
       // Aplica filtros de data se existirem
       if (dataInicio && dataFim) {
         url += `&inicio=${dataInicio}&fim=${dataFim}`;
       }
 
-      const response = await axios.get(url);
+      const response = await api.get(url);
       setTransacoesFiltradas(response.data);
     } catch (error) {
       console.error("Erro ao buscar detalhes:", error);
@@ -154,7 +154,7 @@ function App() {
                   onClick={() => {
                     setDataInicio('');
                     setDataFim('');
-                    axios.get('http://127.0.0.1:8000/api/transacoes/')
+                    api.get('transacoes/')
                       .then(res => {
                         setTransacoes(res.data);
                         processarDados(res.data);

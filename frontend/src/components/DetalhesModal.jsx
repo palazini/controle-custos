@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { X, FileText, Target, Save } from 'lucide-react';
 
 export default function DetalhesModal({ isOpen, onClose, dados, responsavelNome, onMetaUpdate, loading }) {
@@ -63,7 +63,7 @@ export default function DetalhesModal({ isOpen, onClose, dados, responsavelNome,
         try {
             // Como não temos o ID direto, filtramos pelo nome na API (ou poderíamos passar o ID vindo do App.jsx)
             // Jeito rápido: buscar na lista de responsáveis
-            const res = await axios.get('http://127.0.0.1:8000/api/responsaveis/');
+            const res = await api.get('responsaveis/');
             const responsavel = res.data.find(r => r.nome === responsavelNome);
 
             if (responsavel) {
@@ -78,7 +78,7 @@ export default function DetalhesModal({ isOpen, onClose, dados, responsavelNome,
     const salvarMeta = async () => {
         if (!idResponsavel) return;
         try {
-            await axios.patch(`http://127.0.0.1:8000/api/responsaveis/${idResponsavel}/`, {
+            await api.patch(`responsaveis/${idResponsavel}/`, {
                 orcamento_mensal: metaAtual
             });
             setEditando(false);
