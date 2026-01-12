@@ -8,11 +8,14 @@ class ResponsavelCusto(models.Model):
     nome = models.CharField(max_length=255, unique=True, verbose_name="Responsável (MA)")
     descricao = models.TextField(blank=True, null=True)
     
+    # Nome de exibição personalizado (opcional)
+    nome_exibicao = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nome de Exibição")
+    
     # Meta de orçamento para comparação (Budget)
     orcamento_mensal = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
 
     def __str__(self):
-        return self.nome
+        return self.nome_exibicao or self.nome
 
 class Transacao(models.Model):
     """
@@ -43,3 +46,25 @@ class Transacao(models.Model):
 
     def __str__(self):
         return f"{self.data} - R$ {self.valor} ({self.responsavel.nome})"
+
+
+class FornecedorConfig(models.Model):
+    """
+    Configuração de exibição para fornecedores.
+    Permite definir nome de exibição personalizado e visibilidade.
+    """
+    # Nome original do fornecedor (chave única)
+    nome_original = models.CharField(max_length=255, unique=True, verbose_name="Nome Original")
+    
+    # Nome de exibição (opcional - se vazio, usa o original)
+    nome_exibicao = models.CharField(max_length=255, blank=True, null=True, verbose_name="Nome de Exibição")
+    
+    # Visibilidade nas análises
+    exibir = models.BooleanField(default=True, verbose_name="Exibir nas Análises")
+    
+    class Meta:
+        verbose_name = "Configuração de Fornecedor"
+        verbose_name_plural = "Configurações de Fornecedores"
+    
+    def __str__(self):
+        return f"{self.nome_original} → {self.nome_exibicao or 'Original'}"

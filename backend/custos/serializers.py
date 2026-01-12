@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ResponsavelCusto, Transacao
+from .models import ResponsavelCusto, Transacao, FornecedorConfig
 
 class ResponsavelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,4 +12,10 @@ class TransacaoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Transacao
+        fields = '__all__'
+
+
+class FornecedorConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FornecedorConfig
         fields = '__all__'

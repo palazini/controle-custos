@@ -6,7 +6,8 @@ import Resumos from './pages/Resumos';
 import AnaliseFornecedores from './pages/AnaliseFornecedores';
 import AnaliseMensal from './pages/AnaliseMensal';
 import Analise from './pages/Analise';
-import Orcamentos from './pages/Orcamentos';
+import ConfigMA from './pages/ConfigMA';
+import ConfigFornecedores from './pages/ConfigFornecedores';
 import Login from './pages/Login';
 import { AuthProvider, AuthContext } from './contexts/AuthContext';
 
@@ -43,7 +44,8 @@ function App() {
             <Route path="fornecedores" element={<AnaliseFornecedores />} />
             <Route path="mensal" element={<AnaliseMensal />} />
             <Route path="anual" element={<Analise />} />
-            <Route path="orcamentos" element={<Orcamentos />} />
+            <Route path="config-ma" element={<ConfigMA />} />
+            <Route path="config-fornecedores" element={<ConfigFornecedores />} />
           </Route>
         </Routes>
       </BrowserRouter>

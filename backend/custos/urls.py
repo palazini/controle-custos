@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TransacaoViewSet, ResponsavelViewSet, UploadExcelView,
     ResumoMensalView, DetalhesSetorView, ResumoDiarioView,
-    ResumoFornecedoresView, ResumoGeralView, DashboardResumoView
+    ResumoFornecedoresView, ResumoGeralView, DashboardResumoView,
+    FornecedorConfigViewSet, FornecedoresUnicosView, BulkSaveFornecedorConfigView
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -13,6 +14,7 @@ from rest_framework_simplejwt.views import (
 router = DefaultRouter()
 router.register(r'transacoes', TransacaoViewSet)
 router.register(r'responsaveis', ResponsavelViewSet)
+router.register(r'fornecedor-config', FornecedorConfigViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -23,6 +25,8 @@ urlpatterns = [
     path('resumo-fornecedores/', ResumoFornecedoresView.as_view(), name='resumo-fornecedores'),
     path('resumo-geral/', ResumoGeralView.as_view(), name='resumo-geral'),
     path('dashboard-resumo/', DashboardResumoView.as_view(), name='dashboard-resumo'),
+    path('fornecedores-unicos/', FornecedoresUnicosView.as_view(), name='fornecedores-unicos'),
+    path('fornecedor-config-bulk/', BulkSaveFornecedorConfigView.as_view(), name='fornecedor-config-bulk'),
     
     # JWT Auth
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

@@ -39,6 +39,17 @@ REST_FRAMEWORK = {
     )
 }
 
+# Configuração do JWT - tokens com duração maior
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),      # Token expira em 1 dia
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # Refresh token expira em 7 dias
+    'ROTATE_REFRESH_TOKENS': True,                   # Gera novo refresh ao usar
+    'BLACKLIST_AFTER_ROTATION': False,               # Não precisa de blacklist
+    'UPDATE_LAST_LOGIN': True,                       # Atualiza último login
+}
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',

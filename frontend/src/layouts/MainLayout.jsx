@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { LayoutDashboard, Wallet, Activity, BarChart3, CalendarDays, Users, LayoutGrid, LogOut } from 'lucide-react';
+import { LayoutDashboard, Activity, BarChart3, CalendarDays, Users, LayoutGrid, LogOut, Settings } from 'lucide-react';
 
 export default function MainLayout() {
   const location = useLocation();
@@ -44,9 +44,18 @@ export default function MainLayout() {
             <BarChart3 className="w-5 h-5 mr-3" />
             Análise Anual
           </Link>
-          <Link to="/orcamentos" className={getLinkClass('/orcamentos')}>
-            <Wallet className="w-5 h-5 mr-3" />
-            Gestão de Orçamentos
+
+          {/* Separador */}
+          <div className="border-t border-gray-100 my-3"></div>
+
+          <Link to="/config-ma" className={getLinkClass('/config-ma')}>
+            <Settings className="w-5 h-5 mr-3" />
+            Configurações MA
+          </Link>
+
+          <Link to="/config-fornecedores" className={getLinkClass('/config-fornecedores')}>
+            <Settings className="w-5 h-5 mr-3" />
+            Config. Fornecedores
           </Link>
         </nav>
 
