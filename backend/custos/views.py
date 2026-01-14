@@ -822,8 +822,10 @@ class UploadExcelView(APIView):
             df.columns = df.columns.str.strip()
             
             # Validação
-            if 'MA' not in df.columns or 'AMOUNTMST' not in df.columns:
-                 return Response({"error": "Colunas MA ou AMOUNTMST não encontradas"}, status=status.HTTP_400_BAD_REQUEST)
+            colunas_obrigatorias = ['MA', 'AMOUNTMST', 'TRANSDATE', 'Descrição Conta', 'Fornecedor']
+            for col in colunas_obrigatorias:
+                if col not in df.columns:
+                     return Response({"error": f"Coluna obrigatória não encontrada: {col}"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Limpeza prévia de dados (Vectorized operations são mil vezes mais rápidas que loops)
             # Remove linhas onde MA é vazio ou NaN
