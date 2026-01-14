@@ -829,11 +829,30 @@ class UploadExcelView(APIView):
             # Remove linhas onde MA é vazio ou NaN
             df = df.dropna(subset=['MA'])
             df = df[df['MA'].astype(str).str.strip() != '']
+            
+            # Converter TRANSDATE para datetime para garantir formato correto
+            try:
+                # Tenta converter. Se falhar, o pandas tenta inferir.
+                # Assumindo que no Excel vem como datetime ou string aceitável
+                df['TRANSDATE'] = pd.to_datetime(df['TRANSDATE'])
+            except Exception as e:
+                return Response({"error": f"Erro ao processar coluna TRANSDATE: {e}"}, status=status.HTTP_400_BAD_REQUEST)
 
             total_linhas = len(df)
             objetos_transacao = []
 
             with transaction.atomic():
+                # --- PASSO 0: PREVENÇÃO DE DUPLICIDADE ---
+                # Identifica quais datas estão sendo enviadas neste arquivo
+                # df['TRANSDATE'].dt.date retorna objetos python date
+                datas_no_arquivo = df['TRANSDATE'].dt.date.unique()
+                
+                if len(datas_no_arquivo) > 0:
+                    # Apaga TODAS as transações dessas datas antes de inserir as novas.
+                    # Isso garante que se o usuário subir Jan/2026 de novo, apaga e recria.
+                    # print(f"Removendo transações antigas para as datas: {datas_no_arquivo}")
+                    Transacao.objects.filter(data__in=datas_no_arquivo).delete()
+
                 # --- PASSO 1: OTIMIZAÇÃO DOS RESPONSÁVEIS (FOREIGN KEY) ---
                 # Em vez de buscar no banco 60.000 vezes, vamos buscar 1 vez.
                 
@@ -861,6 +880,8 @@ class UploadExcelView(APIView):
 
                 # --- PASSO 2: PREPARAÇÃO DAS TRANSAÇÕES NA MEMÓRIA ---
                 # Agora transformamos o DataFrame em dicionários (muito mais rápido que iterrows)
+                # Precisamos formatar a data de volta para string YYYY-MM-DD ou manter objeto date
+                # O Django aceita objeto date/datetime direto no model field
                 records = df.to_dict('records')
                 
                 for row in records:
@@ -875,7 +896,7 @@ class UploadExcelView(APIView):
                     objetos_transacao.append(
                         Transacao(
                             responsavel=responsavel_obj,
-                            data=row['TRANSDATE'],
+                            data=row['TRANSDATE'], # Já é datetime/timestamp do pandas
                             valor=row['AMOUNTMST'],
                             descricao_conta=str(row['Descrição Conta']),
                             txt_detalhe=str(row['TXT']) if 'TXT' in df.columns else '',
@@ -889,7 +910,7 @@ class UploadExcelView(APIView):
                 # Isso manda comandos SQL de 2000 em 2000 linhas.
                 Transacao.objects.bulk_create(objetos_transacao, batch_size=2000)
 
-            return Response({"message": f"Sucesso! {len(objetos_transacao)} linhas importadas em segundos."}, status=status.HTTP_201_CREATED)
+            return Response({"message": f"Sucesso! {len(objetos_transacao)} linhas importadas. Dados anteriores das datas envolvidas foram substituídos."}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             # Importante: logar o erro no console para você ver o que houve
