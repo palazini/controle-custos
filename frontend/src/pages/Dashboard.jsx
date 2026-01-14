@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import api from '../api';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import {
   LayoutDashboard, Wallet, PieChart as PieIcon,
-  ArrowUpRight, DollarSign, Activity, Calendar, Filter
+  ArrowUpRight, DollarSign, Activity, Calendar, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import UploadModal from '../components/UploadModal';
 import DetalhesModal from '../components/DetalhesModal';
@@ -14,8 +14,6 @@ import DetalhesModal from '../components/DetalhesModal';
 function App() {
   const [dadosGrafico, setDadosGrafico] = useState([]);
   const [dadosTempo, setDadosTempo] = useState([]);
-  const [dataInicio, setDataInicio] = useState('');
-  const [dataFim, setDataFim] = useState('');
   const [totalGasto, setTotalGasto] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
@@ -23,16 +21,46 @@ function App() {
   const [detalhesModalOpen, setDetalhesModalOpen] = useState(false);
   const [transacoesFiltradas, setTransacoesFiltradas] = useState([]);
   const [responsavelSelecionado, setResponsavelSelecionado] = useState('');
-  const [responsavelOriginalSelecionado, setResponsavelOriginalSelecionado] = useState(''); // Novo estado
+  const [responsavelOriginalSelecionado, setResponsavelOriginalSelecionado] = useState('');
+
+  // Novo sistema de período simplificado
+  const [periodoAtivo, setPeriodoAtivo] = useState('ano'); // 'mes', 'ano', 'tudo'
+  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
+  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
 
   const [metas, setMetas] = useState({});
 
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  // Calcula datas início/fim baseado no período selecionado
+  const { dataInicio, dataFim } = useMemo(() => {
+    const hoje = new Date();
+
+    if (periodoAtivo === 'tudo') {
+      return { dataInicio: '', dataFim: '' };
+    }
+
+    if (periodoAtivo === 'ano') {
+      return {
+        dataInicio: `${anoSelecionado}-01-01`,
+        dataFim: `${anoSelecionado}-12-31`
+      };
+    }
+
+    // Período mês
+    const ultimoDia = new Date(anoSelecionado, mesSelecionado, 0).getDate();
+    const mesStr = String(mesSelecionado).padStart(2, '0');
+    return {
+      dataInicio: `${anoSelecionado}-${mesStr}-01`,
+      dataFim: `${anoSelecionado}-${mesStr}-${ultimoDia}`
+    };
+  }, [periodoAtivo, mesSelecionado, anoSelecionado]);
 
   useEffect(() => {
     fetchDados();
     fetchMetas();
-  }, []);
+  }, [dataInicio, dataFim]);
 
   const fetchMetas = async () => {
     try {
@@ -81,11 +109,6 @@ function App() {
     }
   };
 
-  const handleFiltrar = (e) => {
-    e.preventDefault();
-    fetchDados();
-  }
-
   const abrirDetalhes = async (item) => {
     // Se recebeu o objeto do gráfico (clique na tabela/pizza), usa .name e .originalName
     // Se recebeu string (legado/outros), tenta usar como está
@@ -133,48 +156,91 @@ function App() {
             {/* ÁREA DE FILTROS E AÇÕES */}
             <div className="flex flex-wrap items-center gap-3">
 
-              {/* Formulário de Data */}
-              <form onSubmit={handleFiltrar} className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
-                <input
-                  type="date"
-                  value={dataInicio}
-                  onChange={(e) => setDataInicio(e.target.value)}
-                  className="bg-transparent text-sm text-gray-600 outline-none px-2 py-1"
-                  required
-                />
-                <span className="text-gray-400">-</span>
-                <input
-                  type="date"
-                  value={dataFim}
-                  onChange={(e) => setDataFim(e.target.value)}
-                  className="bg-transparent text-sm text-gray-600 outline-none px-2 py-1"
-                  required
-                />
+              {/* Toggle de Período */}
+              <div className="flex bg-gray-100 p-1 rounded-lg">
                 <button
-                  type="submit"
-                  className="bg-white hover:bg-gray-100 text-indigo-600 p-1.5 rounded-md border border-gray-200 shadow-sm transition-all"
-                  title="Aplicar Filtro"
+                  onClick={() => setPeriodoAtivo('mes')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${periodoAtivo === 'mes'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                    }`}
                 >
-                  <Filter className="w-4 h-4" />
+                  Mês
                 </button>
-              </form>
+                <button
+                  onClick={() => setPeriodoAtivo('ano')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${periodoAtivo === 'ano'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                >
+                  Ano
+                </button>
+                <button
+                  onClick={() => setPeriodoAtivo('tudo')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${periodoAtivo === 'tudo'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                >
+                  Tudo
+                </button>
+              </div>
 
-              {/* Botão de limpar filtro (Só aparece se tiver filtro) */}
-              {(dataInicio || dataFim) && (
-                <button
-                  onClick={() => {
-                    setDataInicio('');
-                    setDataFim('');
-                    api.get('transacoes/')
-                      .then(res => {
-                        setTransacoes(res.data);
-                        processarDados(res.data);
-                      });
-                  }}
-                  className="text-xs text-red-500 hover:text-red-700 underline"
-                >
-                  Limpar
-                </button>
+              {/* Seletor de Mês (só aparece se periodoAtivo === 'mes') */}
+              {periodoAtivo === 'mes' && (
+                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                  <button
+                    onClick={() => {
+                      if (mesSelecionado === 1) {
+                        setMesSelecionado(12);
+                        setAnoSelecionado(a => a - 1);
+                      } else {
+                        setMesSelecionado(m => m - 1);
+                      }
+                    }}
+                    className="p-1.5 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <span className="px-3 py-1 text-sm font-medium text-gray-700 min-w-[60px] text-center">
+                    {MESES[mesSelecionado - 1]}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (mesSelecionado === 12) {
+                        setMesSelecionado(1);
+                        setAnoSelecionado(a => a + 1);
+                      } else {
+                        setMesSelecionado(m => m + 1);
+                      }
+                    }}
+                    className="p-1.5 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+              )}
+
+              {/* Seletor de Ano (aparece em Mês e Ano, não em Tudo) */}
+              {periodoAtivo !== 'tudo' && (
+                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                  <button
+                    onClick={() => setAnoSelecionado(a => a - 1)}
+                    className="p-1.5 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <span className="px-3 py-1 text-sm font-medium text-gray-700 min-w-[50px] text-center">
+                    {anoSelecionado}
+                  </span>
+                  <button
+                    onClick={() => setAnoSelecionado(a => a + 1)}
+                    className="p-1.5 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
               )}
 
               <div className="h-6 w-px bg-gray-300 mx-2 hidden md:block"></div>

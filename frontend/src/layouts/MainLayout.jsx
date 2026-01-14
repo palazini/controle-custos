@@ -36,13 +36,9 @@ export default function MainLayout() {
             <Users className="w-5 h-5 mr-3" />
             Fornecedores
           </Link>
-          <Link to="/mensal" className={getLinkClass('/mensal')}>
-            <CalendarDays className="w-5 h-5 mr-3" />
-            Análise Mensal
-          </Link>
-          <Link to="/anual" className={getLinkClass('/anual')}>
+          <Link to="/analise" className={getLinkClass('/analise')}>
             <BarChart3 className="w-5 h-5 mr-3" />
-            Análise Anual
+            Análise
           </Link>
 
           {/* Separador */}

@@ -4,7 +4,6 @@ import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Resumos from './pages/Resumos';
 import AnaliseFornecedores from './pages/AnaliseFornecedores';
-import AnaliseMensal from './pages/AnaliseMensal';
 import Analise from './pages/Analise';
 import ConfigMA from './pages/ConfigMA';
 import ConfigFornecedores from './pages/ConfigFornecedores';
@@ -42,8 +41,10 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="resumos" element={<Resumos />} />
             <Route path="fornecedores" element={<AnaliseFornecedores />} />
-            <Route path="mensal" element={<AnaliseMensal />} />
-            <Route path="anual" element={<Analise />} />
+            <Route path="analise" element={<Analise />} />
+            {/* Redirects antigos para compatibilidade */}
+            <Route path="mensal" element={<Navigate to="/analise" replace />} />
+            <Route path="anual" element={<Navigate to="/analise" replace />} />
             <Route path="config-ma" element={<ConfigMA />} />
             <Route path="config-fornecedores" element={<ConfigFornecedores />} />
           </Route>

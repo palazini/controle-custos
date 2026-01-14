@@ -219,6 +219,7 @@ class DetalhesSetorView(APIView):
     Query params:
         ano: Ano para filtrar
         setor: Nome do setor/responsável
+        mes: (opcional) Mês para filtrar (1-12)
     
     Retorna:
         [{"descricao": "Nome da Conta", "total": 50000, "count": 15}, ...]
@@ -228,6 +229,7 @@ class DetalhesSetorView(APIView):
     def get(self, request):
         ano = request.query_params.get('ano')
         setor = request.query_params.get('setor')
+        mes = request.query_params.get('mes')
         
         if not ano or not setor:
             return Response({"error": "Parâmetros 'ano' e 'setor' são obrigatórios"}, status=400)
@@ -239,6 +241,10 @@ class DetalhesSetorView(APIView):
             data__year=ano,
             responsavel__nome=setor
         )
+        
+        # Filtra por mês se fornecido
+        if mes:
+            queryset = queryset.filter(data__month=int(mes))
         
         # Agrupa por descrição de conta
         por_descricao = queryset.values('descricao_conta').annotate(
@@ -319,7 +325,8 @@ class ResumoDiarioView(APIView):
             ],
             "por_setor": [
                 {
-                    "setor": aplicar_nome_exibicao_responsavel(item['responsavel__nome'], responsavel_display_map), 
+                    "setor": aplicar_nome_exibicao_responsavel(item['responsavel__nome'], responsavel_display_map),
+                    "setor_original": item['responsavel__nome'],
                     "total": float(item['total'])
                 }
                 for item in por_setor
@@ -426,6 +433,173 @@ class ResumoFornecedoresView(APIView):
             "total_ano": float(total_ano),
             "ano": int(ano)
         })
+
+
+class ResumoFornecedoresMensalView(APIView):
+    """
+    Retorna resumo de gastos por fornecedor para um mês específico
+    GET /api/resumo-fornecedores-mensal/?ano=2025&mes=1
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ano = request.query_params.get('ano', datetime.now().year)
+        mes = request.query_params.get('mes', datetime.now().month)
+        
+        ano = int(ano)
+        mes = int(mes)
+        
+        config_map = get_fornecedor_config_map()
+        
+        queryset = Transacao.objects.filter(
+            data__year=ano,
+            data__month=mes,
+            fornecedor__isnull=False
+        ).exclude(fornecedor='')
+        
+        # Por fornecedor
+        por_fornecedor_raw = queryset.values('fornecedor').annotate(
+            total=Sum('valor'),
+            transacoes=Count('id')
+        ).order_by('-total')
+        
+        # Aplicar configurações
+        por_fornecedor = []
+        for f in por_fornecedor_raw:
+            nome_exibicao = aplicar_config_fornecedor(f['fornecedor'], config_map)
+            if nome_exibicao is None:
+                continue
+            por_fornecedor.append({
+                'fornecedor': nome_exibicao,
+                'fornecedor_original': f['fornecedor'],
+                'total': float(f['total']),
+                'transacoes': f['transacoes']
+            })
+        
+        por_fornecedor = por_fornecedor[:50]
+        
+        # Total
+        total_mes = queryset.aggregate(total=Sum('valor'))['total'] or 0
+        
+        return Response({
+            "por_fornecedor": [
+                {
+                    'fornecedor': f['fornecedor'],
+                    'total': f['total'],
+                    'transacoes': f['transacoes']
+                }
+                for f in por_fornecedor
+            ],
+            "total_mes": float(total_mes),
+            "ano": ano,
+            "mes": mes
+        })
+
+
+class DetalhesFornecedorView(APIView):
+    """
+    Retorna detalhes de um fornecedor específico (por descrição de conta)
+    GET /api/detalhes-fornecedor/?ano=2025&fornecedor=XPTO
+    GET /api/detalhes-fornecedor/?ano=2025&mes=1&fornecedor=XPTO
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        ano = request.query_params.get('ano')
+        mes = request.query_params.get('mes')
+        fornecedor = request.query_params.get('fornecedor')
+        
+        if not ano or not fornecedor:
+            return Response({"error": "Parâmetros 'ano' e 'fornecedor' são obrigatórios"}, status=400)
+        
+        ano = int(ano)
+        
+        # Carregar config para mapear nome de exibição -> original
+        config_map = get_fornecedor_config_map()
+        
+        # Tentar encontrar o nome original do fornecedor
+        fornecedor_original = None
+        for nome_orig, config in config_map.items():
+            if config['nome_exibicao'] == fornecedor:
+                fornecedor_original = nome_orig
+                break
+        
+        if not fornecedor_original:
+            fornecedor_original = fornecedor
+        
+        queryset = Transacao.objects.filter(
+            data__year=ano,
+            fornecedor=fornecedor_original
+        )
+        
+        if mes:
+            queryset = queryset.filter(data__month=int(mes))
+        
+        # Agrupar por descrição de conta
+        por_descricao = queryset.values('descricao_conta').annotate(
+            total=Sum('valor'),
+            count=Count('id')
+        ).order_by('-total')
+        
+        return Response([
+            {
+                "descricao": item['descricao_conta'] or 'Outros',
+                "total": float(item['total']),
+                "count": item['count']
+            }
+            for item in por_descricao
+        ])
+
+
+class TransacoesFornecedorView(APIView):
+    """
+    Retorna lista detalhada de transações de um fornecedor
+    GET /api/transacoes-fornecedor/?ano=2025&fornecedor=XPTO
+    GET /api/transacoes-fornecedor/?ano=2025&mes=1&fornecedor=XPTO
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        ano = request.query_params.get('ano')
+        mes = request.query_params.get('mes')
+        fornecedor = request.query_params.get('fornecedor')
+        
+        if not ano or not fornecedor:
+            return Response({"error": "Parâmetros 'ano' e 'fornecedor' são obrigatórios"}, status=400)
+            
+        ano = int(ano)
+        
+        # Mapping logic
+        config_map = get_fornecedor_config_map()
+        fornecedor_original = None
+        for nome_orig, config in config_map.items():
+            if config['nome_exibicao'] == fornecedor:
+                fornecedor_original = nome_orig
+                break
+        
+        if not fornecedor_original:
+            fornecedor_original = fornecedor
+            
+        queryset = Transacao.objects.filter(
+            data__year=ano,
+            fornecedor=fornecedor_original
+        ).select_related('responsavel').order_by('data')
+        
+        if mes:
+            queryset = queryset.filter(data__month=int(mes))
+            
+        data = []
+        for t in queryset:
+            data.append({
+                'id': t.id,
+                'data': t.data,
+                'valor': float(t.valor),
+                'descricao_conta': t.descricao_conta,
+                'centro_custo': t.responsavel.nome if t.responsavel else '-',
+                'detalhe': t.txt_detalhe
+            })
+            
+        return Response(data)
 
 
 class ResumoGeralView(APIView):

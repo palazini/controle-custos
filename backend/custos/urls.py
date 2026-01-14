@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TransacaoViewSet, ResponsavelViewSet, UploadExcelView,
     ResumoMensalView, DetalhesSetorView, ResumoDiarioView,
-    ResumoFornecedoresView, ResumoGeralView, DashboardResumoView,
+    ResumoFornecedoresView, ResumoFornecedoresMensalView, DetalhesFornecedorView, TransacoesFornecedorView,
+    ResumoGeralView, DashboardResumoView,
     FornecedorConfigViewSet, FornecedoresUnicosView, BulkSaveFornecedorConfigView
 )
 from rest_framework_simplejwt.views import (
@@ -23,6 +24,9 @@ urlpatterns = [
     path('resumo-diario/', ResumoDiarioView.as_view(), name='resumo-diario'),
     path('detalhes-setor/', DetalhesSetorView.as_view(), name='detalhes-setor'),
     path('resumo-fornecedores/', ResumoFornecedoresView.as_view(), name='resumo-fornecedores'),
+    path('resumo-fornecedores-mensal/', ResumoFornecedoresMensalView.as_view(), name='resumo-fornecedores-mensal'),
+    path('detalhes-fornecedor/', DetalhesFornecedorView.as_view(), name='detalhes-fornecedor'),
+    path('transacoes-fornecedor/', TransacoesFornecedorView.as_view(), name='transacoes-fornecedor'),
     path('resumo-geral/', ResumoGeralView.as_view(), name='resumo-geral'),
     path('dashboard-resumo/', DashboardResumoView.as_view(), name='dashboard-resumo'),
     path('fornecedores-unicos/', FornecedoresUnicosView.as_view(), name='fornecedores-unicos'),
