@@ -18,11 +18,12 @@ function App() {
   const [dataFim, setDataFim] = useState('');
   const [totalGasto, setTotalGasto] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadingDetalhes, setLoadingDetalhes] = useState(false); // Novo estado
+  const [loadingDetalhes, setLoadingDetalhes] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [detalhesModalOpen, setDetalhesModalOpen] = useState(false);
-  const [transacoesFiltradas, setTransacoesFiltradas] = useState([]); // Agora buscadas sob demanda
+  const [transacoesFiltradas, setTransacoesFiltradas] = useState([]);
   const [responsavelSelecionado, setResponsavelSelecionado] = useState('');
+  const [responsavelOriginalSelecionado, setResponsavelOriginalSelecionado] = useState(''); // Novo estado
 
   const [metas, setMetas] = useState({});
 
@@ -38,7 +39,9 @@ function App() {
       const response = await api.get('responsaveis/');
       const mapMetas = {};
       response.data.forEach(r => {
-        mapMetas[r.nome] = parseFloat(r.orcamento_mensal);
+        // Usa nome_exibicao como chave se existir, senão usa nome
+        const chave = r.nome_exibicao || r.nome;
+        mapMetas[chave] = parseFloat(r.orcamento_mensal) || 0;
       });
       setMetas(mapMetas);
     } catch (error) {
@@ -62,6 +65,7 @@ function App() {
       // Mapear para o formato do Recharts
       setDadosGrafico(dados.resumo_setor.map(s => ({
         name: s.responsavel_nome,
+        originalName: s.responsavel_original, // Nome real para buscar na API
         value: s.total
       })));
 
@@ -82,14 +86,21 @@ function App() {
     fetchDados();
   }
 
-  const abrirDetalhes = async (nomeResponsavel) => {
-    setResponsavelSelecionado(nomeResponsavel);
+  const abrirDetalhes = async (item) => {
+    // Se recebeu o objeto do gráfico (clique na tabela/pizza), usa .name e .originalName
+    // Se recebeu string (legado/outros), tenta usar como está
+    const nomeExibicao = item.name || item;
+    const nomeOriginal = item.originalName || item;
+
+    setResponsavelSelecionado(nomeExibicao);
+    setResponsavelOriginalSelecionado(nomeOriginal); // Guarda o original
     setDetalhesModalOpen(true);
     setLoadingDetalhes(true);
     setTransacoesFiltradas([]); // Limpa enquanto carrega
 
     try {
-      let url = `transacoes/?responsavel__nome=${encodeURIComponent(nomeResponsavel)}`;
+      // Usa o nome original para filtrar no backend
+      let url = `transacoes/?responsavel__nome=${encodeURIComponent(nomeOriginal)}`;
       // Aplica filtros de data se existirem
       if (dataInicio && dataFim) {
         url += `&inicio=${dataInicio}&fim=${dataFim}`;
@@ -279,7 +290,7 @@ function App() {
                       outerRadius={100}
                       paddingAngle={5}
                       dataKey="value"
-                      onClick={(data) => abrirDetalhes(data.name)}
+                      onClick={(data) => abrirDetalhes(data)}
                       cursor="pointer"
                     >
                       {dadosGrafico.map((entry, index) => (
@@ -305,26 +316,29 @@ function App() {
                   <thead className="bg-gray-50 text-gray-900 font-medium">
                     <tr>
                       <th className="px-6 py-4">Responsável</th>
-                      <th className="px-6 py-4 text-right">Valor</th>
-                      <th className="px-6 py-4 text-right">%</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Valor</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap w-40">%</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {dadosGrafico.slice(0, 5).map((item, index) => {
-                      const meta = metas[item.name] || 0; // Pega a meta ou 0 se não tiver
-                      const percentualMeta = meta > 0 ? (item.value / meta) * 100 : 0;
+                      const metaMensal = metas[item.name] || 0; // Meta mensal
+                      // Calcula a meta acumulada baseada no número de meses com dados
+                      const mesesNoPeriodo = dadosTempo.length || 1;
+                      const metaAcumulada = metaMensal * mesesNoPeriodo;
+                      const percentualMeta = metaAcumulada > 0 ? (item.value / metaAcumulada) * 100 : 0;
                       const isEstourado = percentualMeta > 100;
 
                       return (
                         <tr
                           key={index}
                           className="hover:bg-gray-50 transition-colors cursor-pointer group"
-                          onClick={() => abrirDetalhes(item.name)}
+                          onClick={() => abrirDetalhes(item)}
                         >
                           <td className="px-6 py-4">
                             <div className="font-medium text-gray-800">{item.name}</div>
                             {/* Barra de Progresso Mini */}
-                            {meta > 0 && (
+                            {metaAcumulada > 0 && (
                               <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
                                 <div
                                   className={`h-1.5 rounded-full ${isEstourado ? 'bg-red-500' : 'bg-green-500'}`}
@@ -332,17 +346,17 @@ function App() {
                                 ></div>
                               </div>
                             )}
-                            {meta > 0 && (
-                              <div className="text-xs text-gray-400 mt-0.5">
-                                Meta: R$ {meta.toLocaleString('pt-BR', { compactDisplay: "short", maximumFractionDigits: 0 })}
+                            {metaAcumulada > 0 && (
+                              <div className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">
+                                Meta ({mesesNoPeriodo} {mesesNoPeriodo === 1 ? 'mês' : 'meses'}): R$ {metaAcumulada.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-right font-mono">
+                          <td className="px-6 py-4 text-right font-mono whitespace-nowrap">
                             R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            {meta > 0 ? (
+                          <td className="px-6 py-4 text-right whitespace-nowrap">
+                            {metaAcumulada > 0 ? (
                               <span className={`px-2 py-1 rounded-full text-xs font-bold ${isEstourado ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                                 {percentualMeta.toFixed(0)}% da Meta
                               </span>
@@ -374,6 +388,8 @@ function App() {
           onClose={() => setDetalhesModalOpen(false)}
           dados={transacoesFiltradas}
           responsavelNome={responsavelSelecionado}
+          responsavelOriginal={responsavelOriginalSelecionado} // Passa o original
+          meses={dadosTempo.length || 1} // Passa quantidade de meses
           onMetaUpdate={fetchMetas}
           loading={loadingDetalhes}
         />

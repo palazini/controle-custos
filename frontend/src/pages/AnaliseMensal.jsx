@@ -36,7 +36,9 @@ export default function AnaliseMensal() {
 
             const mapMetas = {};
             resResp.data.forEach(r => {
-                mapMetas[r.nome] = parseFloat(r.orcamento_mensal);
+                // Usa nome_exibicao como chave se existir, senão usa nome
+                const chave = r.nome_exibicao || r.nome;
+                mapMetas[chave] = parseFloat(r.orcamento_mensal) || 0;
             });
             setMetas(mapMetas);
 

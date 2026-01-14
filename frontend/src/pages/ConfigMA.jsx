@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import api from '../api';
-import { Save, Search, Settings, AlertCircle, Check, AlertTriangle, CheckSquare, Square, Eye, EyeOff } from 'lucide-react';
+import { Save, Search, Settings, AlertCircle, Check, AlertTriangle } from 'lucide-react';
 
 export default function ConfiguracoesMA() {
   const [responsaveis, setResponsaveis] = useState([]);
@@ -9,24 +9,9 @@ export default function ConfiguracoesMA() {
   const [filtro, setFiltro] = useState('');
   const [editando, setEditando] = useState({}); // {id: {orcamento_mensal, nome_exibicao}}
   const [mensagem, setMensagem] = useState(null);
-  const [selecionados, setSelecionados] = useState(new Set());
 
   useEffect(() => {
     fetchResponsaveis();
-  }, []);
-
-  // Aviso ao sair da página com alterações não salvas
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (temAlteracoesNaoSalvas) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
   const fetchResponsaveis = async () => {
@@ -39,12 +24,11 @@ export default function ConfiguracoesMA() {
       const edits = {};
       dadosOrdenados.forEach(r => {
         edits[r.id] = {
-          orcamento_mensal: r.orcamento_mensal,
+          orcamento_mensal: parseFloat(r.orcamento_mensal) || 0,
           nome_exibicao: r.nome_exibicao || ''
         };
       });
       setEditando(edits);
-      setSelecionados(new Set());
       setLoading(false);
     } catch (error) {
       console.error("Erro ao buscar", error);
@@ -60,16 +44,6 @@ export default function ConfiguracoesMA() {
     );
   }, [responsaveis, filtro]);
 
-  // Verificar se todos os filtrados estão selecionados
-  const todosFiltradosSelecionados = useMemo(() => {
-    if (listaFiltrada.length === 0) return false;
-    return listaFiltrada.every(r => selecionados.has(r.id));
-  }, [listaFiltrada, selecionados]);
-
-  const algunsSelecionados = useMemo(() => {
-    return listaFiltrada.some(r => selecionados.has(r.id));
-  }, [listaFiltrada, selecionados]);
-
   const temAlteracao = (id) => {
     const responsavel = responsaveis.find(r => r.id === id);
     const edit = editando[id];
@@ -80,7 +54,7 @@ export default function ConfiguracoesMA() {
     const metaOriginal = parseFloat(responsavel.orcamento_mensal) || 0;
     const metaEditada = parseFloat(edit.orcamento_mensal) || 0;
 
-    return nomeOriginal !== nomeEditado || metaOriginal !== metaEditada;
+    return nomeOriginal !== nomeEditado || Math.abs(metaOriginal - metaEditada) > 0.01;
   };
 
   const temAlteracoesNaoSalvas = useMemo(() => {
@@ -91,14 +65,106 @@ export default function ConfiguracoesMA() {
     return responsaveis.filter(r => temAlteracao(r.id)).length;
   }, [responsaveis, editando]);
 
-  const handleMetaChange = (id, novoValor) => {
+  // Aviso ao sair da página com alterações não salvas
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (temAlteracoesNaoSalvas) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [temAlteracoesNaoSalvas]);
+
+  // Estado para controlar valores sendo editados (texto livre enquanto digita)
+  const [inputMensal, setInputMensal] = useState({});
+  const [inputAnual, setInputAnual] = useState({});
+
+  // Converte string brasileira para número
+  const parseValor = (valorString) => {
+    if (!valorString || valorString === '') return 0;
+    // Remove pontos de milhar e troca vírgula por ponto
+    const limpo = valorString.toString().replace(/\./g, '').replace(',', '.');
+    const num = parseFloat(limpo);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Formata número para exibição brasileira
+  const formatarValor = (valor) => {
+    if (!valor || valor === 0) return '';
+    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Handler para quando o usuário está digitando na MENSAL
+  const handleInputMensal = (id, valorDigitado) => {
+    setInputMensal(prev => ({ ...prev, [id]: valorDigitado }));
+  };
+
+  // Handler para quando o usuário sai do campo MENSAL (blur)
+  const handleBlurMensal = (id) => {
+    const valorTexto = inputMensal[id];
+    if (valorTexto === undefined) return;
+
+    const valor = parseValor(valorTexto);
+    const valorArredondado = Math.round(valor * 100) / 100; // Arredonda para 2 casas
+
     setEditando(prev => ({
       ...prev,
       [id]: {
         ...prev[id],
-        orcamento_mensal: novoValor
+        orcamento_mensal: valorArredondado
       }
     }));
+
+    // Limpa o estado de input para mostrar o valor formatado
+    setInputMensal(prev => {
+      const novo = { ...prev };
+      delete novo[id];
+      return novo;
+    });
+    setInputAnual(prev => {
+      const novo = { ...prev };
+      delete novo[id];
+      return novo;
+    });
+  };
+
+  // Handler para quando o usuário está digitando na ANUAL
+  const handleInputAnual = (id, valorDigitado) => {
+    setInputAnual(prev => ({ ...prev, [id]: valorDigitado }));
+  };
+
+  // Handler para quando o usuário sai do campo ANUAL (blur)
+  const handleBlurAnual = (id) => {
+    const valorTexto = inputAnual[id];
+    if (valorTexto === undefined) return;
+
+    const valorAnual = parseValor(valorTexto);
+    const valorMensal = valorAnual / 12;
+    const valorArredondado = Math.round(valorMensal * 100) / 100; // Arredonda para 2 casas
+
+    setEditando(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        orcamento_mensal: valorArredondado
+      }
+    }));
+
+    // Limpa o estado de input para mostrar o valor formatado
+    setInputMensal(prev => {
+      const novo = { ...prev };
+      delete novo[id];
+      return novo;
+    });
+    setInputAnual(prev => {
+      const novo = { ...prev };
+      delete novo[id];
+      return novo;
+    });
   };
 
   const handleNomeChange = (id, novoValor) => {
@@ -111,38 +177,6 @@ export default function ConfiguracoesMA() {
     }));
   };
 
-  const toggleSelecao = (id) => {
-    setSelecionados(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleSelecionarTodos = () => {
-    if (todosFiltradosSelecionados) {
-      setSelecionados(prev => {
-        const newSet = new Set(prev);
-        listaFiltrada.forEach(r => newSet.delete(r.id));
-        return newSet;
-      });
-    } else {
-      setSelecionados(prev => {
-        const newSet = new Set(prev);
-        listaFiltrada.forEach(r => newSet.add(r.id));
-        return newSet;
-      });
-    }
-  };
-
-  const limparSelecao = () => {
-    setSelecionados(new Set());
-  };
-
   // Salvar todas as alterações em uma única requisição
   const salvarTodasAlteracoes = async () => {
     setSaving(true);
@@ -153,8 +187,11 @@ export default function ConfiguracoesMA() {
       // Salvar cada um via PATCH
       for (const r of responsaveisAlterados) {
         const edit = editando[r.id];
+        // Arredonda para 2 casas decimais antes de enviar
+        const valorFinal = Math.round(parseFloat(edit.orcamento_mensal || 0) * 100) / 100;
+
         await api.patch(`responsaveis/${r.id}/`, {
-          orcamento_mensal: edit.orcamento_mensal,
+          orcamento_mensal: valorFinal.toFixed(2), // Envia como string com 2 casas
           nome_exibicao: edit.nome_exibicao || null
         });
       }
@@ -178,7 +215,7 @@ export default function ConfiguracoesMA() {
     const edits = {};
     responsaveis.forEach(r => {
       edits[r.id] = {
-        orcamento_mensal: r.orcamento_mensal,
+        orcamento_mensal: parseFloat(r.orcamento_mensal) || 0,
         nome_exibicao: r.nome_exibicao || ''
       };
     });
@@ -243,49 +280,58 @@ export default function ConfiguracoesMA() {
       {/* Mensagem de feedback */}
       {mensagem && (
         <div className={`mx-8 mt-4 p-4 rounded-lg flex items-center gap-2 ${mensagem.tipo === 'sucesso'
-            ? 'bg-green-100 text-green-700 border border-green-200'
-            : 'bg-red-100 text-red-700 border border-red-200'
+          ? 'bg-green-100 text-green-700 border border-green-200'
+          : 'bg-red-100 text-red-700 border border-red-200'
           }`}>
           {mensagem.tipo === 'sucesso' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           {mensagem.texto}
         </div>
       )}
 
-      <main className="flex-1 overflow-auto p-8">
-        <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+      <main className="flex-1 overflow-hidden p-8">
+        <div className="bg-white rounded-xl shadow border border-gray-200 h-full flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-auto">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200 sticky top-0">
+              <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200 sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-4 w-1/3">Centro de Responsabilidade (MA)</th>
-                  <th className="px-4 py-4 w-1/3">Nome de Exibição</th>
-                  <th className="px-4 py-4 w-1/4">Meta Mensal (Budget)</th>
-                  <th className="px-4 py-4 w-24">Status</th>
+                  <th className="px-4 py-4 bg-gray-50">Centro de Responsabilidade (MA)</th>
+                  <th className="px-4 py-4 bg-gray-50">Nome de Exibição</th>
+                  <th className="px-4 py-4 bg-gray-50">
+                    Meta Mensal
+                    <span className="block text-xs font-normal text-gray-400">Editável</span>
+                  </th>
+                  <th className="px-4 py-4 bg-gray-50">
+                    Meta Anual
+                    <span className="block text-xs font-normal text-gray-400">Editável (Mensal × 12)</span>
+                  </th>
+                  <th className="px-4 py-4 w-24 bg-gray-50">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan="4" className="p-8 text-center text-gray-500">Carregando setores...</td></tr>
+                  <tr><td colSpan="5" className="p-8 text-center text-gray-500">Carregando setores...</td></tr>
                 ) : listaFiltrada.map(item => {
                   const edit = editando[item.id] || {};
                   const alterado = temAlteracao(item.id);
+                  const metaMensal = parseFloat(edit.orcamento_mensal) || 0;
+                  const metaAnual = metaMensal * 12;
 
                   return (
                     <tr
                       key={item.id}
                       className={`hover:bg-indigo-50/30 transition-colors group ${alterado ? 'bg-amber-50/50' : ''}`}
                     >
-                      <td className="px-4 py-4 font-medium text-gray-800">
-                        <span className="truncate block max-w-[300px]" title={item.nome}>
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        <span className="truncate block max-w-[280px]" title={item.nome}>
                           {item.nome}
                         </span>
-                        {parseFloat(item.orcamento_mensal) === 0 && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {metaMensal === 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 mt-1">
                             <AlertCircle className="w-3 h-3 mr-1" /> Sem meta
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
                         <input
                           type="text"
                           value={edit.nome_exibicao || ''}
@@ -295,21 +341,43 @@ export default function ConfiguracoesMA() {
                             }`}
                         />
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="relative max-w-xs">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">R$</span>
+                      <td className="px-4 py-3">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">R$</span>
                           <input
-                            type="number"
-                            value={edit.orcamento_mensal || 0}
-                            onChange={(e) => handleMetaChange(item.id, e.target.value)}
-                            className={`w-full pl-10 pr-4 py-2 border rounded-lg outline-none transition-all font-mono font-medium ${alterado
-                                ? 'border-amber-300 bg-amber-50'
-                                : 'border-gray-200 bg-gray-50 group-hover:bg-white focus:bg-white focus:border-indigo-400'
+                            type="text"
+                            inputMode="decimal"
+                            value={inputMensal[item.id] !== undefined ? inputMensal[item.id] : formatarValor(metaMensal)}
+                            onChange={(e) => handleInputMensal(item.id, e.target.value)}
+                            onBlur={() => handleBlurMensal(item.id)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                            placeholder="0,00"
+                            className={`w-full pl-9 pr-3 py-2 border rounded-lg outline-none transition-all font-mono text-sm ${alterado
+                              ? 'border-amber-300 bg-amber-50'
+                              : 'border-gray-200 bg-gray-50 group-hover:bg-white focus:bg-white focus:border-indigo-400'
                               }`}
                           />
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={inputAnual[item.id] !== undefined ? inputAnual[item.id] : formatarValor(metaAnual)}
+                            onChange={(e) => handleInputAnual(item.id, e.target.value)}
+                            onBlur={() => handleBlurAnual(item.id)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                            placeholder="0,00"
+                            className={`w-full pl-9 pr-3 py-2 border rounded-lg outline-none transition-all font-mono text-sm ${alterado
+                              ? 'border-amber-300 bg-amber-50'
+                              : 'border-gray-200 bg-gray-50 group-hover:bg-white focus:bg-white focus:border-indigo-400'
+                              }`}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
                         {alterado ? (
                           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
                             <AlertTriangle className="w-3 h-3" />

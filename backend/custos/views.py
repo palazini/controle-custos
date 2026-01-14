@@ -552,6 +552,11 @@ class TransacaoViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass # Se a data vier errada, ignora e retorna tudo
 
+        # Filtra pelo nome do responsável (usado no modal de detalhes)
+        responsavel_nome = self.request.query_params.get('responsavel__nome')
+        if responsavel_nome:
+            queryset = queryset.filter(responsavel__nome=responsavel_nome)
+
         return queryset
 
 
@@ -614,6 +619,7 @@ class DashboardResumoView(APIView):
             "resumo_setor": [
                 {
                     'responsavel_nome': aplicar_nome_exibicao_responsavel(s['responsavel__nome'], responsavel_display_map) or 'Outros',
+                    'responsavel_original': s['responsavel__nome'], # Nome original para filtros
                     'total': float(s['total'])
                 }
                 for s in resumo_setor
